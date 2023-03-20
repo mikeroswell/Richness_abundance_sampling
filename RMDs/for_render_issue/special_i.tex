@@ -1,0 +1,201 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{lmodern}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=1in]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{graphicx}
+\makeatletter
+\def\maxwidth{\ifdim\Gin@nat@width>\linewidth\linewidth\else\Gin@nat@width\fi}
+\def\maxheight{\ifdim\Gin@nat@height>\textheight\textheight\else\Gin@nat@height\fi}
+\makeatother
+% Scale images if necessary, so that they will not overflow the page
+% margins by default, and it is still possible to overwrite the defaults
+% using explicit options in \includegraphics[width, height, ...]{}
+\setkeys{Gin}{width=\maxwidth,height=\maxheight,keepaspectratio}
+% Set default figure placement to htbp
+\makeatletter
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+\ifLuaTeX
+  \usepackage{selnolig}  % disable illegal ligatures
+\fi
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same} % disable monospaced font for URLs
+\hypersetup{
+  pdftitle={special\_i},
+  pdfauthor={Michael Roswell},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{special\_i}
+\author{Michael Roswell}
+\date{2023-02-24}
+
+\begin{document}
+\maketitle
+
+seems like the dplyr warning message creates problems with
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{mtcars[}\DecValTok{1}\NormalTok{,}\StringTok{"carb"}\NormalTok{] }\OtherTok{\textless{}{-}} \ConstantTok{NA}
+\NormalTok{mtcars }\SpecialCharTok{\%\textgreater{}\%} \FunctionTok{summarize\_all}\NormalTok{(sqrt)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning: Returning more (or less) than 1 row per `summarise()` group was deprecated in
+## dplyr 1.1.0.
+## i Please use `reframe()` instead.
+## i When switching from `summarise()` to `reframe()`, remember that `reframe()`
+##   always returns an ungrouped data frame and adjust accordingly.
+## i The deprecated feature was likely used in the dplyr package.
+##   Please report the issue at <]8;;https://github.com/tidyverse/dplyr/issueshttps://github.com/tidyverse/dplyr/issues]8;;>.
+\end{verbatim}
+
+\begin{verbatim}
+##         mpg      cyl      disp        hp     drat       wt     qsec vs am
+## 1  4.582576 2.449490 12.649111 10.488088 1.974842 1.618641 4.057093  0  1
+## 2  4.582576 2.449490 12.649111 10.488088 1.974842 1.695582 4.125530  0  1
+## 3  4.774935 2.000000 10.392305  9.643651 1.962142 1.523155 4.313931  1  1
+## 4  4.626013 2.449490 16.062378 10.488088 1.754993 1.793042 4.409082  1  0
+## 5  4.324350 2.828427 18.973666 13.228757 1.774824 1.854724 4.125530  0  0
+## 6  4.254409 2.449490 15.000000 10.246951 1.661325 1.860108 4.496665  1  0
+## 7  3.781534 2.828427 18.973666 15.652476 1.791647 1.889444 3.979950  0  0
+## 8  4.939636 2.000000 12.111978  7.874008 1.920937 1.786057 4.472136  1  0
+## 9  4.774935 2.000000 11.865918  9.746794 1.979899 1.774824 4.785394  1  0
+## 10 4.381780 2.449490 12.946042 11.090537 1.979899 1.854724 4.277850  1  0
+## 11 4.219005 2.449490 12.946042 11.090537 1.979899 1.854724 4.347413  1  0
+## 12 4.049691 2.828427 16.607227 13.416408 1.752142 2.017424 4.171331  0  0
+## 13 4.159327 2.828427 16.607227 13.416408 1.752142 1.931321 4.195235  0  0
+## 14 3.898718 2.828427 16.607227 13.416408 1.752142 1.944222 4.242641  0  0
+## 15 3.224903 2.828427 21.725561 14.317821 1.711724 2.291288 4.240283  0  0
+## 16 3.224903 2.828427 21.447611 14.662878 1.732051 2.328948 4.221374  0  0
+## 17 3.834058 2.828427 20.976177 15.165751 1.797220 2.311926 4.173727  0  0
+## 18 5.692100 2.000000  8.871302  8.124038 2.019901 1.483240 4.412482  1  1
+## 19 5.513620 2.000000  8.700575  7.211103 2.220360 1.270827 4.303487  1  1
+## 20 5.822371 2.000000  8.432082  8.062258 2.054264 1.354622 4.460942  1  1
+## 21 4.636809 2.000000 10.959015  9.848858 1.923538 1.570032 4.473254  1  0
+## 22 3.937004 2.828427 17.832555 12.247449 1.661325 1.876166 4.107311  0  0
+## 23 3.898718 2.828427 17.435596 12.247449 1.774824 1.853375 4.159327  0  0
+## 24 3.646917 2.828427 18.708287 15.652476 1.931321 1.959592 3.925557  0  0
+## 25 4.381780 2.828427 20.000000 13.228757 1.754993 1.960867 4.129165  0  0
+## 26 5.224940 2.000000  8.888194  8.124038 2.019901 1.391043 4.347413  1  1
+## 27 5.099020 2.000000 10.968136  9.539392 2.104757 1.462874 4.086563  0  1
+## 28 5.513620 2.000000  9.751923 10.630146 1.941649 1.230041 4.110961  1  1
+## 29 3.974921 2.828427 18.734994 16.248077 2.054264 1.780449 3.807887  0  1
+## 30 4.438468 2.449490 12.041595 13.228757 1.902630 1.664332 3.937004  0  1
+## 31 3.872983 2.828427 17.349352 18.303005 1.881489 1.889444 3.820995  0  1
+## 32 4.626013 2.000000 11.000000 10.440307 2.027313 1.667333 4.312772  1  1
+##        gear     carb
+## 1  2.000000       NA
+## 2  2.000000 2.000000
+## 3  2.000000 1.000000
+## 4  1.732051 1.000000
+## 5  1.732051 1.414214
+## 6  1.732051 1.000000
+## 7  1.732051 2.000000
+## 8  2.000000 1.414214
+## 9  2.000000 1.414214
+## 10 2.000000 2.000000
+## 11 2.000000 2.000000
+## 12 1.732051 1.732051
+## 13 1.732051 1.732051
+## 14 1.732051 1.732051
+## 15 1.732051 2.000000
+## 16 1.732051 2.000000
+## 17 1.732051 2.000000
+## 18 2.000000 1.000000
+## 19 2.000000 1.414214
+## 20 2.000000 1.000000
+## 21 1.732051 1.000000
+## 22 1.732051 1.414214
+## 23 1.732051 1.414214
+## 24 1.732051 2.000000
+## 25 1.732051 1.414214
+## 26 2.000000 1.000000
+## 27 2.236068 1.414214
+## 28 2.236068 1.414214
+## 29 2.236068 2.000000
+## 30 2.236068 2.449490
+## 31 2.236068 2.828427
+## 32 2.000000 1.414214
+\end{verbatim}
+
+\end{document}

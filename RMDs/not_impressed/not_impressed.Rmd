@@ -1,0 +1,701 @@
+---
+title: "Wildflower plantings attract more rare species, but I'm not impressed"
+author: "Michael Roswell" 
+date: "2023-02-22" 
+output: 
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(MASS)
+library(tidyverse)
+library(emmeans)
+library(patchwork)
+```
+
+# Hook 
+I'd like to use this as the title for a paper, but I'm struggling to say why I'm
+not impressed when it looks like rare species increase *more* than common
+species do in response to a treatment. I think it's not because the treatment is
+interpreted differently by rare and common taxa; instead I think it's because of
+something numerical I can't quite pin down... but it's an uninteresting (or at
+least, neutral) sampling effect, not a niche-based difference in rare and common
+spp (which I would think is cool!)
+
+# Let me show you a sampling effect that I don't think is interesting.
+First, let me introduce you to the "bees" in my imaginary study region. There
+are 400 species, and like any natural species abundance distrbution, there are a
+few common species and a long tail of very rare ones. I simulated the
+distribution of relative abundances using the **R** package **MeanRarity**, but
+honestly don't get hung up on this part, the point is a few species are common
+and most are rare.
+
+```{r simulate species abundance distribution}
+rich <- 400
+
+
+regional_abundances <-
+  MeanRarity::fit_SAD(rich = rich, simpson = 25)$rel_abundances
+
+pdf("figures/SAD_400.pdf", height = 4, width = 4)
+MeanRarity::radplot(regional_abundances) +
+  # scale_y_log10() +
+  ylab("proportional abundance")
+dev.off()
+```
+
+Now, I'll define some species as "rare" and others as common. Let's define the
+top 100 species as common, and the bottom 100 as rare. This is one way to think
+about commonness and rarity... admittedly not the most typical way but it's
+clear, right? The top quarter are common, the bottom quarter are rare, if you're
+in the middle you're neither common nore rare..
+
+Let's say I could sample the species from this regional pool perfectly in
+proportion to their relative abundance. If in sample "a" I sampled `r ss_a`
+individuals and `r ss_b` in sample "b" I sampled 200 individuals, what would happen? I
+mean, would I see a bigger increase in common species, or in rare species,
+between "b" and "a"? Why?
+
+Let's check it out.
+
+```{r sample proportionally}
+set.seed(666) # guarantees demonic outcomes
+reps <- 9999 # set high so we're not caught off guard by noise
+ss_a <- 200
+ss_b <- 2*ss_a
+a <- rmultinom(reps, ss_a, prob = regional_abundances)
+b <- rmultinom(reps, ss_bb, prob = regional_abundances)
+a_common<- a[1:100,]
+a_rare <- a[301:400,]
+b_common <- b[1:100,]
+b_rare <- b[301:400,]
+```
+
+I expect to see double the number of individuals from rare species in "b" as
+"a", and also double the number of individuals from common species. Is this what
+you expect?
+
+```{r individuals effect size as anticipated}
+abundance_data <- map_dfr(c("a", "b"), function(samp){
+  map_dfr(c("rare", "common"), function(rarity){
+    data.frame(abundance = apply(get(paste(samp, rarity, sep = "_"))
+               , 2, sum)
+    , samp = samp
+    , rarity = rarity
+    )
+  })
+})
+
+# look at means and se
+pdf("figures/abundance_response.pdf", height = 3, width = 3)
+abundance_data %>%
+  ggplot(aes(samp, abundance, color = rarity)) +
+  stat_summary(fun = mean
+               , fun.max = function(x){mean(x) +  sd(x)/sqrt(length(x))}
+               , fun.min = function(x){max(mean(x) - sd(x)/sqrt(length(x)), 0)}
+               , size = 0.25) +
+  theme_classic() +
+  coord_trans(y = "log10") +
+  scale_y_continuous(breaks = scales::breaks_log())
+dev.off()
+```
+
+Yes, In this picture it looks like the rare species
+increase as much as the common ones did. What does a model tell us about the
+average increase?
+
+```{r glm.nb abundance}
+ab_mod <- MASS::glm.nb(abundance ~ rarity*samp
+              , data = abundance_data
+              , control = glm.control(maxit = 999)
+              )
+
+ab_mod$theta # use poisson
+
+ab_mod <- glm(abundance ~ rarity*samp
+              , data = abundance_data
+              , family = "poisson"
+              )
+
+```
+
+If things went as I would expect, I'd see a significant effect of `samp`
+(approximate doubling) and a significant effect of `rarity` -- and no interaction.
+Is that what I see?
+
+```{r glm summary}
+summary(ab_mod)
+```
+
+It is what I see! Note that the interaction term has tight CI around 0; this
+means we're seeing basically the same change of about 2x in abundance of "rare"
+and "common" taxa. Unfortunately, my expectations might not carry over to the
+change in the number of *species* I see between `a` and `b`.
+
+```{r richness effects dont conform}
+ab_r_data <- map_dfr(c("a", "b"), function(samp){
+  map_dfr(c("rare", "common"), function(rarity){
+    data.frame(abundance = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, sum)
+              , species = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, function(x){sum(x>0)})
+    , samp = samp
+    , rarity = rarity
+    )
+  })
+})
+
+pdf("figures/species_response.pdf", height = 3, width = 3)
+ab_r_data %>%
+  ggplot(aes(samp, species, color = rarity)) +
+  stat_summary(fun = mean
+               , fun.max = function(x){mean(x) +  sd(x)/sqrt(length(x))}
+               , fun.min = function(x){max(mean(x) - sd(x)/sqrt(length(x)), 0)}
+               , size = 0.25) +
+  theme_classic() +
+  coord_trans(y = "log10") +
+  scale_y_continuous(breaks = scales::breaks_log())
+dev.off()
+```
+
+Ok, now this is bugging me. It looks like I see a **bigger** increase in the
+number of rare species between `a` and `b` than I do in the number of common
+species. But of course, nothing about the difference in sampling intensity
+applied to rare species but not common ones, right?
+
+Is this what a model says, too?
+
+```{r glm.nb species}
+# treating the count of species as... a count
+# species_mod <- MASS::glm.nb(species ~ rarity*samp
+#               , data = ab_r_data
+#               , control = glm.control(maxit = 999)
+#               )
+# 
+# 
+# species_mod$theta # use poisson
+
+species_mod <- glm(species ~ rarity*samp
+              , data = ab_r_data
+              , family = "poisson"
+              )
+
+summary(species_mod)
+```
+
+Yikes! Now the interaction is huge! I mean, it's not wrong... You probably saw
+this coming... a large fraction of the common species were present in `a`, so
+that fraction (and thus the counts) just can't increase that much in `b`. By
+contrast, only a percent or two of the rare species is typically found in `a`,
+so there is a lot of room to grow!
+
+If we think about an increase in the *fraction* of the total species found in
+`a` vs. `b`, maybe we should be thinking of a logistic regression instead.
+
+```{r logistic regression instead}
+ab_r_data <- ab_r_data %>%
+  mutate(r_perc = species/100)
+species_logistic <- glm(r_perc ~ samp * rarity # factors
+                        , data = ab_r_data
+                        , family = "binomial"
+                        , weights = rep.int(100, length(abundance_data[,1])))
+summary(species_logistic)
+
+
+```
+
+Ok, In an earlier moment, this looked how I wanted, and now it doesn't! I'm
+worried I kinda got lucky there... does the lack of interaction depend on the
+size of the sampling effect? On the sampling intensities in absolute terms?
+
+```{r vary sampling effect, warning=FALSE}
+samp_eff <- seq(1.5, 5, 0.5)
+base_ab <- c(100, 200, 400, 800, 1600)
+reps <- 9999
+eff_trend <- map_dfr(base_ab, function(ba){
+  map_dfr(samp_eff, function(seff){
+  a <- rmultinom(reps, ba, prob = regional_abundances)
+  b <- rmultinom(reps, ba
+                 *seff, prob = regional_abundances)
+  a_common <- a[1:100,]
+  a_rare <- a[301:400,]
+  b_common <- b[1:100,]
+  b_rare <- b[301:400,]
+  dd <- map_dfr(c("a", "b"), function(samp){
+  map_dfr(c("rare", "common"), function(rarity){
+    data.frame(abundance = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, sum)
+              , species = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, function(x){sum(x>0)})
+              , samp = samp
+              , rarity = rarity
+              , base_abund = ba
+              , sampling_effect = seff
+    ) %>% mutate(rperc = species/100)
+      })
+    })
+  })
+})
+eff_mods <- eff_trend %>%
+  mutate(wt = 100) %>% 
+  nest_by(base_abund, sampling_effect) %>%
+  mutate(my_mod = list(glm(rperc~samp*rarity
+                        , data = data
+                        , family = "binomial"
+                        , weights = wt)))
+effs <- eff_mods %>% summarize(intx = summary(my_mod)$coefficients[4,1]
+            , pval = summary(my_mod)$coefficients[4,4])
+
+pdf("figures/logistic_interaction_effect.pdf", width = 4, height = 4)
+effs %>%
+  ggplot(aes(sampling_effect
+             , intx
+             , size =  base_abund)) +
+  geom_point(alpha = 0.5) +
+  theme_classic() +
+  labs(x = "sampling effect (b/a)"
+       , y = "interaction term"
+       , size = "abundance in 'a'") +
+  scale_color_viridis_c() +
+  scale_size_area()
+dev.off()
+```
+
+FUDGE! it totally does. Let's look at the graph: 
+
+
+- Interaction shrinks with the size of the sampling effect
+
+- Interaction shrinks with sample sizes 
+
+
+# One thought: Why am I not using a beta-binomial?
+
+
+```{r betareg, warning = FALSE}
+# not sure this is working, skip
+# beta_mods <- eff_trend %>%
+#   mutate(wt = 100) %>% 
+#   nest_by(base_abund, sampling_effect) %>%
+#   mutate(my_mod = list(glmmTMB::glmmTMB(rperc~samp*rarity
+#                         , data = data
+#                         , family = glmmTMB::betabinomial
+#                         , weights = wt)))
+# 
+# betas <- beta_mods %>% summarize(intx = summary(my_mod)$coefficients$cond[4,1]
+#             , pval = summary(my_mod)$coefficients$cond[4,4])
+# betas %>%
+#   ggplot(aes(sampling_effect
+#              , pval
+#              , color = boot::inv.logit(intx)
+#              , size =  base_abund)) +
+#   geom_point(alpha = 0.5) +
+#   theme_classic() +
+#   labs(x = "sampling effect (b/a)"
+#        , y = "p value for sampling  x rarity coefficient"
+#        , color = "interaction term effect size\n(response scale)"
+#        , size = "abundance in 'a'") +
+#   scale_color_viridis_c() +
+#   scale_size_area()
+
+```
+
+<!-- Basically same picture. -->
+
+# richness estimator makes things worse, which makes sense
+
+The Chao1 richness estimator is among the best amenable to data of this sort. In
+some sense, if it worked as advertised, it would remove the treatment effect,
+which it can nearly do for the common spp. It is very sensitive to the number of
+observed species, so it tends to jump up a lot from very low to kinda low sample
+sizes, as we expect with rare species between `a` and `b`. Which is exactly what
+we might want to control for.
+
+```{r try richness estimator}
+ab_r_c1_data <- map_dfr(c("a", "b"), function(samp){
+  map_dfr(c("rare", "common"), function(rarity){
+    data.frame(abundance = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, sum)
+              , species = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, function(x){sum(x>0)})
+              , chao1 = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, function(x){ifelse(sum(x)>0, MeanRarity::Chao_Hill_abu(x, 1), 0)})
+    , samp = samp
+    , rarity = rarity
+    )
+  })
+})
+
+ab_r_c1_data %>%
+  ggplot(aes(samp, chao1, color = rarity)) +
+  stat_summary(fun = function(x){mean(x, na.rm = TRUE)}
+               , fun.max = function(x){mean(x, na.rm = TRUE) +  sd(x, na.rm = TRUE)/sqrt(sum(!is.na(x)))}
+               , fun.min = function(x){max(mean(x, na.rm = TRUE) - sd(x, na.rm = TRUE)/sqrt(sum(!is.na(x))), 0)}
+               , size = 0.25) +
+  theme_classic() +
+  coord_trans(y = "log10") +
+  scale_y_continuous(breaks = scales::breaks_log())
+```
+
+# Hazard models   
+
+Jonathan suggests this might be clearly framed as a Hazard model and so to use the complimentary log-log link in a GLM. Let's sketch one out to make sure we have an idea of what is going on here.
+Let's think about how smoking and asbestos exposure (we'll treat them both as categorical) increase mortality. 
+
+
+
+```{r define cloglog link}
+## same as ff.cloglog$linkfun:
+cloglog <- function(x) log(-log(1-x))
+## same as ff.cloglog$linkinv
+gompertz <- function(x) 1-exp(-exp(x))
+```
+
+```{r cloglog}
+baseline_mortality <- 0.05 # 5% background mortality
+# 10% (double) chance of dying if you smoke
+# ditto asbestos exposure
+# but effect of asbestos is 1.5x as big for smokers than for non-smokers
+
+ss <- 9999# individuals we're looking at
+individual <- 1:ss
+smoking  <- sample(0:1, ss, prob = c(3,1), replace = TRUE)
+asbestos <-  sample(0:1, ss, prob = c(9,1), replace = TRUE)
+dead <- sapply(individual, function(x){sample(0:1, 1, 
+                 , prob = c(1- (1*smoking[x] + 1* asbestos[x] + 3*asbestos[x]*smoking[x] + 1) * baseline_mortality
+                 , (1*smoking[x] + 1* asbestos[x] + 3*asbestos[x]*smoking[x] + 1) * baseline_mortality))
+  })
+
+
+clog_dat <- data.frame(individual, smoking, asbestos, dead)
+
+clog_mod <- glm(dead~smoking*asbestos, family = binomial(link = "cloglog"), data = clog_dat)
+summary(clog_mod)
+
+
+exp(clog_mod$coefficients)
+```
+
+```{r cloglog species}
+# c log log thinks:
+# 
+# there's a multiplicative rln between the two factors (forgetting the interaction term itself)
+# What does the interaction mean? A deviation from the strict power law rln between the two hazards
+# now, the question is what is the rln between the hazards? Constant ratio...
+# This is a constant difference in the model?
+# so it doesn't mean: drop the interaction,  should have no hazard associated with rarity
+# Should the log hazards be additive?? 
+# Problem: non-linear averaging associated with the fact that the species within group don't have same abundance
+# but it might be ok for now. 
+
+
+
+species_cloglog <- glm(r_perc ~ samp * rarity # factors
+                        , data = ab_r_data
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(abundance_data[,1])))
+
+
+summary(species_cloglog)
+
+#family = binomial(link = cloglog))
+```
+
+
+# next step: simplify
+
+JD intuits non-linear averaging might be the problem here. Make species so they
+have the same mean abundances.
+
+```{r simplify cloglog}
+rare <- 1
+common <- 10
+ab_a <- rmultinom(reps, 200, c(rep(rare, 100), rep(common, 100)))
+ab_b <- rmultinom(reps, 400, c(rep(rare, 100), rep(common, 100)))
+a_common <- ab_a[101:200,]
+a_rare <- ab_a[1:100,]
+b_common <- ab_b[101:200,]
+b_rare <- ab_b[1:100,]
+dd <- map_dfr(c("a", "b"), function(samp){
+  map_dfr(c("rare", "common"), function(rarity){
+    data.frame(abundance = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, sum)
+              , species = apply(get(paste(samp, rarity, sep = "_"))
+                , 2, function(x){sum(x>0)})
+              , samp = samp
+              , rarity = rarity
+    ) %>% mutate(rperc = species/100)
+      })
+})
+
+# still a problem for logistic
+species_logistic_simple <- glm(rperc ~ samp * rarity
+                        , data = dd
+                        , family = "binomial"
+                        , weights = rep.int(100, length(dd[,1])))
+
+
+summary(species_logistic_simple)
+
+# but interaction gone with cloglog
+species_cloglog_simple <- glm(rperc ~ samp * rarity
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+
+
+summary(species_cloglog_simple)
+
+exp(coef(species_cloglog_simple))
+```
+
+# consider an offset 
+
+JD suggested an offset for total number of individuals observed in the group.
+The idea is that hazards are basically increasingly linearly with the ?cloglog
+of sample size, which is what led us to the original model. If I can find the
+version of this that works,  including the offset will pull from the intercept
+term (it should basically make the rare and common groups identical, in effect)
+but will not alter the main effect of treatment. Because there is no longer a
+difference in intercepts between the rarity groups, we're hoping there also
+won't be any kind of interaction.
+
+```{r add cloglog offset}
+
+# need to add some data, I guess
+dd <- dd %>% mutate(start_ab = rep(abundance[1:19998], 2)
+                    , end_ab = rep(abundance[19999:nrow(dd)], 2))
+
+# this won't work becuase cloglog(bunch of integers) is no good!
+# clog_off <- glm(rperc ~ samp * rarity + offset(cloglog(start_ab))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+
+# try just log(count) for the offset (use log x+1?)
+clog_off <- glm(rperc ~ samp * rarity + offset(log(dd$start_ab))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+summary(clog_off)
+
+
+
+# is it symmetrical?
+clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+summary(clog_off_bw)
+
+ddd <- dd
+ddd[which(dd$samp == "a"), "samp"] <- "d"
+clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
+                        , data = ddd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+summary(clog_off_bw)
+
+clog_off2 <- glm(rperc ~ samp * rarity + offset(log(dd$abundance + 1))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1]))) 
+
+summary(clog_off2) # don't want that, it kills the treatment effect by including it in the offset
+
+
+# nope!
+
+# try including log(count) as a term and seeing what kind of coefficient(s) it gets
+clog_term <- glm(rperc ~ samp * rarity + log(start_ab)
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+
+summary(clog_term)
+
+# Hmmm. if we take the total count of individuals as a given... incl. its impact on treatment
+# clog_off <- glm(rperc ~ samp * rarity + offset(log(abundance))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+
+
+# clog_off <- glm(rperc ~ samp * rarity + log(start_ab)
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+dd <- dd %>% mutate(start_rich = rep(species[1:19998],2))
+clog_off <- glm(rperc ~ samp * rarity + offset(log(start_rich))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+clog_off <- glm(rperc ~ samp * rarity + log(start_rich/100)
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+
+clog_off <- glm(rperc ~ samp * rarity + offset(log(1/abundance))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+```
+
+# solutions to nonlinear averaging  
+
+Similar to the way observation-level random effects in a poisson model can
+accommodate unmodeled dispersion and effectively fit a negative binomial
+distribution, perhaps what we need is a species-level random effect. It's not
+super clear if we might encounter technical problems fitting the models with
+this random effect, e.g., identifiability and convergence issues. So, we'll
+build up to it and see where it goes.
+
+```{r species-level random effects}
+reps <- 9999
+rare <- 1 # mean for rare
+common <- 25 # mean for common
+ab_a <- rmultinom(reps, 200, c(rnorm(100, rare, sd = 0.2), rnorm(100, common)))
+ab_b <- rmultinom(reps, 400,  c(rnorm(100, rare, sd = 0.2), rnorm(100, common)))
+
+r_a <- ab_a
+r_a[ab_a > 0] <- 1
+
+r_b <- ab_b
+r_b[ab_b > 0] <- 1
+
+wide <- bind_rows(bind_cols(r_a
+                    , rarity = c(rep("rare", 100), rep("common", 100))
+                    , sp = 1:200
+                    , samp = "a") %>% 
+  pivot_longer(1:reps, names_to = NULL, values_to = "occ")
+          , bind_cols(r_b
+                    , rarity = c(rep("rare", 100), rep("common", 100))
+                    , sp = 1:200
+                    , samp = "b") %>% 
+  pivot_longer(1:reps, names_to = NULL, values_to = "occ")
+)
+
+
+names(wide)
+
+# fit GLMM in lme4 (glmmTMB suspected not to be reliable on convergence issues
+# due to boundary things)
+
+# try_slre <- lme4::glmer(occ~rarity*samp + (rarity|sp)
+#                         , family = binomial(link = "cloglog")
+#                         , data = wide)
+# 
+# # get convergence warning. First, see how close it got to simulation parameters
+# summary(try_slre)
+
+# Ok, not sure what to expect for the RE variances. Looks like this gives us bit 
+# of an interaction effect, but the rarity and sampling effects still look about right. 
+
+# I guess next step is check convergence. 
+
+# slre_AF <- lme4::allFit(try_slre)
+
+# actually, we might want a simpler model: 
+slre_only <- lme4::glmer(occ~rarity*samp + (1|sp)
+                        , family = binomial(link = "cloglog")
+                        , data = wide)
+
+# No convergence warning.
+summary(slre_only)
+
+str(coef(slre_only))
+
+exp(lme4::fixef(slre_only))
+1/25
+
+# try with bigger variances, this is hard to compare
+
+ab_a <- rmultinom(reps, 200, c(rnorm(100, rare, sd = 0.2)
+                               , rnorm(100, common, sd = 5)))
+ab_b <- rmultinom(reps, 400,  c(rnorm(100, rare, sd = 0.2)
+                                , rnorm(100, common, sd = 5)))
+
+r_a <- ab_a
+r_a[ab_a > 0] <- 1
+
+r_b <- ab_b
+r_b[ab_b > 0] <- 1
+
+wide <- bind_rows(bind_cols(r_a
+                    , rarity = c(rep("rare", 100), rep("common", 100))
+                    , sp = 1:200
+                    , samp = "a") %>% 
+  pivot_longer(1:reps, names_to = NULL, values_to = "occ")
+          , bind_cols(r_b
+                    , rarity = c(rep("rare", 100), rep("common", 100))
+                    , sp = 1:200
+                    , samp = "b") %>% 
+  pivot_longer(1:reps, names_to = NULL, values_to = "occ")
+)
+
+
+slre_bigvar <- lme4::glmer(occ~rarity*samp + (1|sp)
+                        , family = binomial(link = "cloglog")
+                        , data = wide)
+
+summary(slre_bigvar)
+exp(lme4::fixef(slre_only))
+exp(lme4::fixef(slre_bigvar))
+```
+
+
+```{r offsets in complex situations}
+
+abradata <- ab_r_data %>% 
+  mutate(start_ab = rep(ab_r_data[1:19998,"abundance"], 2))
+
+
+
+crazy_off <- glm(species/100 ~ rarity * samp + offset(log(start_ab + 1))
+                        , family = binomial(link = "cloglog")
+                 , weights =rep.int(100, nrow(abradata))
+                        , data = abradata)
+
+summary(crazy_off)
+
+```
+
+# play with box-cox link?
+
+```{r custom link}
+bc <- function() {
+    ## link
+    linkfun <- function(y) log(exp(y)-1)
+    ## inverse link
+    linkinv <- function(eta)  log(exp(eta)+1) #log(m) = log(k) +log((1-p)^(1/k)-1) - log(1-p)/k
+    ## derivative of invlink wrt eta
+    mu.eta <- function(eta) { 1/(exp(-eta) + 1) }
+    valideta <- function(eta) TRUE
+    link <- "log(exp(y)-1)"
+    structure(list(linkfun = linkfun, linkinv = linkinv,
+                   mu.eta = mu.eta, valideta = valideta, 
+                   name = link),
+              class = "link-glm")
+}
+
+## Sandbox.... Why would't you just sample the same in all treatments?
+I sample bees by looking into flowers in timed, fixed-area surveys, and if there
+is a bee contacting the reproductive parts of the flower, I capture the bee.
+From one perspective, the amount of sampling I do is about the time and area
+dimensions. But the number of bees I sample will increase if I look into more
+flowers in a given time and area... assuming the visit rate per flower stays
+pretty constant. I think of that increase as a sampling effect, even if it is
+mediated by a treatment that increases the flowers per area.
+
+On the other hand, I'd be very interested if planting particular kinds of
+flowers attracted some kinds of bees that would otherwise not come by the yard.

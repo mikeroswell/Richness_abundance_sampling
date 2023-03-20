@@ -1,0 +1,22 @@
+---
+title: "special_i"
+author: "Michael Roswell"
+date: "2023-02-24"
+output: 
+  pdf_document: 
+    latex_engine: pdflatex
+---
+seems like the dplyr warning message creates problems with 
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(dplyr)
+```
+```{r create a warning}
+
+
+mtcars[1,"carb"] <- NA
+mtcars %>% summarize_all(sqrt)
+
+```
+
