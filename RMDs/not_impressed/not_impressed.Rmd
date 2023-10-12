@@ -66,7 +66,7 @@ reps <- 9999 # set high so we're not caught off guard by noise
 ss_a <- 200
 ss_b <- 2*ss_a
 a <- rmultinom(reps, ss_a, prob = regional_abundances)
-b <- rmultinom(reps, ss_bb, prob = regional_abundances)
+b <- rmultinom(reps, ss_b, prob = regional_abundances)
 a_common<- a[1:100,]
 a_rare <- a[301:400,]
 b_common <- b[1:100,]
@@ -306,12 +306,12 @@ FUDGE! it totally does. Let's look at the graph:
 
 # richness estimator makes things worse, which makes sense
 
-The Chao1 richness estimator is among the best amenable to data of this sort. In
-some sense, if it worked as advertised, it would remove the treatment effect,
-which it can nearly do for the common spp. It is very sensitive to the number of
-observed species, so it tends to jump up a lot from very low to kinda low sample
-sizes, as we expect with rare species between `a` and `b`. Which is exactly what
-we might want to control for.
+The Chao1 richness estimator is among the best richness estimation tools that
+are amenable to data of this sort. In some sense, if it worked as advertised, it
+would remove the treatment effect, which it can nearly do for the common spp. It
+is very sensitive to the number of observed species, so it tends to jump up a
+lot from very low to kinda low sample sizes, as we expect with rare species
+between `a` and `b`. Which is exactly what we might want to control for.
 
 ```{r try richness estimator}
 ab_r_c1_data <- map_dfr(c("a", "b"), function(samp){
@@ -341,8 +341,10 @@ ab_r_c1_data %>%
 
 # Hazard models   
 
-Jonathan suggests this might be clearly framed as a Hazard model and so to use the complimentary log-log link in a GLM. Let's sketch one out to make sure we have an idea of what is going on here.
-Let's think about how smoking and asbestos exposure (we'll treat them both as categorical) increase mortality. 
+Jonathan suggests this might be clearly framed as a Hazard model and so to use
+the complimentary log-log link in a GLM. Let's sketch one out to make sure we
+have an idea of what is going on here. Let's think about how smoking and
+asbestos exposure (we'll treat them both as categorical) increase mortality.
 
 
 
@@ -363,9 +365,13 @@ ss <- 9999# individuals we're looking at
 individual <- 1:ss
 smoking  <- sample(0:1, ss, prob = c(3,1), replace = TRUE)
 asbestos <-  sample(0:1, ss, prob = c(9,1), replace = TRUE)
-dead <- sapply(individual, function(x){sample(0:1, 1, 
-                 , prob = c(1- (1*smoking[x] + 1* asbestos[x] + 3*asbestos[x]*smoking[x] + 1) * baseline_mortality
-                 , (1*smoking[x] + 1* asbestos[x] + 3*asbestos[x]*smoking[x] + 1) * baseline_mortality))
+dead <- sapply(individual, function(x){sample(0:1
+                                              , 1
+                                              , prob = c(
+  1- (1*smoking[x] + 1* asbestos[x] + 3 * asbestos[x] * smoking[x] + 1
+      ) * baseline_mortality
+  , (1*smoking[x] + 1* asbestos[x] + 3 * asbestos[x] * smoking[x] + 1
+     ) * baseline_mortality))
   })
 
 
@@ -463,6 +469,9 @@ but will not alter the main effect of treatment. Because there is no longer a
 difference in intercepts between the rarity groups, we're hoping there also
 won't be any kind of interaction.
 
+Revisiting this like 6 months later, I have a guess about a potential form for 
+the offsets and I'm going to mess with it here. 
+
 ```{r add cloglog offset}
 
 # need to add some data, I guess
@@ -548,6 +557,15 @@ clog_off <- glm(rperc ~ samp * rarity + offset(log(1/abundance))
                         , data = dd
                         , family = binomial(link = cloglog)
                         , weights = rep.int(100, length(dd[,1])))
+
+# consider using the link function and rel abund for offsets
+dd <- dd %>% mutate(relab = start_ab/sum(start_ab))
+clog_off <- glm(rperc ~ samp * rarity + offset(log(-log(1-relab)))
+                        , data = dd
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(dd[,1])))
+
+summary(clog_off)
 
 ```
 
