@@ -3,8 +3,8 @@ title: "Wildflower plantings attract more rare species, but I'm not impressed"
 author: "Michael Roswell" 
 date: "2023-02-22" 
 output: 
-  pdf_document: default
   html_document: default
+  pdf_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -39,11 +39,15 @@ rich <- 400
 regional_abundances <-
   MeanRarity::fit_SAD(rich = rich, simpson = 25)$rel_abundances
 
-pdf("figures/SAD_400.pdf", height = 4, width = 4)
+# pdf("figures/SAD_400.pdf", height = 4, width = 4)
 MeanRarity::radplot(regional_abundances) +
   # scale_y_log10() +
   ylab("proportional abundance")
-dev.off()
+# dev.off()
+```
+```{r set abundances, echo = FALSE}
+ss_a <- 200
+ss_b <- 2 * ss_a
 ```
 
 Now, I'll define some species as "rare" and others as common. Let's define the
@@ -54,17 +58,17 @@ in the middle you're neither common nore rare..
 
 Let's say I could sample the species from this regional pool perfectly in
 proportion to their relative abundance. If in sample "a" I sampled `r ss_a`
-individuals and `r ss_b` in sample "b" I sampled 200 individuals, what would happen? I
-mean, would I see a bigger increase in common species, or in rare species,
-between "b" and "a"? Why?
+individuals and `r ss_b` in sample "b" I sampled 200 individuals, what would
+happen? I mean, would I see a bigger increase in common species, or in rare
+species, between "b" and "a"? Why?
 
 Let's check it out.
 
 ```{r sample proportionally}
 set.seed(666) # guarantees demonic outcomes
 reps <- 9999 # set high so we're not caught off guard by noise
-ss_a <- 200
-ss_b <- 2*ss_a
+ss_a <- 400
+ss_b <- 2 * ss_a
 a <- rmultinom(reps, ss_a, prob = regional_abundances)
 b <- rmultinom(reps, ss_b, prob = regional_abundances)
 a_common<- a[1:100,]
@@ -397,14 +401,31 @@ exp(clog_mod$coefficients)
 # but it might be ok for now. 
 
 
-
+ab_r_pos <- ab_r_data %>% filter(abundance >0)
 species_cloglog <- glm(r_perc ~ samp * rarity # factors
-                        , data = ab_r_data
+                        , data = ab_r_pos
                         , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(abundance_data[,1])))
+                        , weights = rep.int(100, length(ab_r_pos[,1])))
 
+species_cloglog_off <-  glm(r_perc ~ samp * rarity  + offset(log(abundance))# factors
+                        , data = ab_r_pos
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length(ab_r_pos[,1])))
 
+summary(species_cloglog_off)
 summary(species_cloglog)
+
+exp(coef(species_cloglog))
+
+exp(coef(species_cloglog_off))
+
+nitx <-  glm(r_perc ~ samp  + offset(log(abundance))# factors
+                        , data = ab_r_pos %>% dplyr::filter(rarity == "common")
+                        , family = binomial(link = cloglog)
+                        , weights = rep.int(100, length((ab_r_pos %>% dplyr::filter(rarity == "common"))[,1])))
+
+summary(nitx)
+exp(coef(nitx))
 
 #family = binomial(link = cloglog))
 ```
@@ -474,10 +495,11 @@ the offsets and I'm going to mess with it here.
 
 ```{r add cloglog offset}
 
-# need to add some data, I guess
-dd <- dd %>% mutate(start_ab = rep(abundance[1:19998], 2)
-                    , end_ab = rep(abundance[19999:nrow(dd)], 2))
-
+# # need to add some data, I guess
+# dd <- dd %>% mutate(start_ab = rep(abundance[1:19998], 2)
+#                     , end_ab = rep(abundance[19999:nrow(dd)], 2))
+# 
+# dd
 # this won't work becuase cloglog(bunch of integers) is no good!
 # clog_off <- glm(rperc ~ samp * rarity + offset(cloglog(start_ab))
 #                         , data = dd
@@ -485,87 +507,94 @@ dd <- dd %>% mutate(start_ab = rep(abundance[1:19998], 2)
 #                         , weights = rep.int(100, length(dd[,1])))
 
 # try just log(count) for the offset (use log x+1?)
-clog_off <- glm(rperc ~ samp * rarity + offset(log(dd$start_ab))
+# clog_off <- glm(rperc ~ samp * rarity + offset(log(dd$start_ab))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+
+clog_off <- glm(rperc ~ samp * rarity + offset(log(dd$abundance))
                         , data = dd
                         , family = binomial(link = cloglog)
                         , weights = rep.int(100, length(dd[,1])))
 
 summary(clog_off)
+exp(coef(clog_off))
 
 
 
-# is it symmetrical?
-clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-summary(clog_off_bw)
-
-ddd <- dd
-ddd[which(dd$samp == "a"), "samp"] <- "d"
-clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
-                        , data = ddd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-summary(clog_off_bw)
-
-clog_off2 <- glm(rperc ~ samp * rarity + offset(log(dd$abundance + 1))
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1]))) 
-
-summary(clog_off2) # don't want that, it kills the treatment effect by including it in the offset
-
-
-# nope!
-
-# try including log(count) as a term and seeing what kind of coefficient(s) it gets
-clog_term <- glm(rperc ~ samp * rarity + log(start_ab)
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-
-summary(clog_term)
-
-# Hmmm. if we take the total count of individuals as a given... incl. its impact on treatment
-# clog_off <- glm(rperc ~ samp * rarity + offset(log(abundance))
+# # is it symmetrical?
+# clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
 #                         , data = dd
 #                         , family = binomial(link = cloglog)
 #                         , weights = rep.int(100, length(dd[,1])))
-
-
-# clog_off <- glm(rperc ~ samp * rarity + log(start_ab)
+# 
+# summary(clog_off_bw)
+# 
+# ddd <- dd
+# ddd[which(dd$samp == "a"), "samp"] <- "d"
+# clog_off_bw <- glm(rperc ~ samp * rarity + offset(log(dd$end_ab))
+#                         , data = ddd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+# 
+# summary(clog_off_bw)
+# 
+# clog_off2 <- glm(rperc ~ samp * rarity + offset(log(dd$abundance + 1))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1]))) 
+# 
+# summary(clog_off2) # don't want that, it kills the treatment effect by including it in the offset
+# 
+# 
+# # nope!
+# 
+# # try including log(count) as a term and seeing what kind of coefficient(s) it gets
+# clog_term <- glm(rperc ~ samp * rarity + log(start_ab)
 #                         , data = dd
 #                         , family = binomial(link = cloglog)
 #                         , weights = rep.int(100, length(dd[,1])))
-dd <- dd %>% mutate(start_rich = rep(species[1:19998],2))
-clog_off <- glm(rperc ~ samp * rarity + offset(log(start_rich))
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-clog_off <- glm(rperc ~ samp * rarity + log(start_rich/100)
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-
-clog_off <- glm(rperc ~ samp * rarity + offset(log(1/abundance))
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-# consider using the link function and rel abund for offsets
-dd <- dd %>% mutate(relab = start_ab/sum(start_ab))
-clog_off <- glm(rperc ~ samp * rarity + offset(log(-log(1-relab)))
-                        , data = dd
-                        , family = binomial(link = cloglog)
-                        , weights = rep.int(100, length(dd[,1])))
-
-summary(clog_off)
+# 
+# 
+# summary(clog_term)
+# 
+# # Hmmm. if we take the total count of individuals as a given... incl. its impact on treatment
+# # clog_off <- glm(rperc ~ samp * rarity + offset(log(abundance))
+# #                         , data = dd
+# #                         , family = binomial(link = cloglog)
+# #                         , weights = rep.int(100, length(dd[,1])))
+# 
+# 
+# # clog_off <- glm(rperc ~ samp * rarity + log(start_ab)
+# #                         , data = dd
+# #                         , family = binomial(link = cloglog)
+# #                         , weights = rep.int(100, length(dd[,1])))
+# dd <- dd %>% mutate(start_rich = rep(species[1:19998],2))
+# clog_off <- glm(rperc ~ samp * rarity + offset(log(start_rich))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+# 
+# clog_off <- glm(rperc ~ samp * rarity + log(start_rich/100)
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+# 
+# 
+# clog_off <- glm(rperc ~ samp * rarity + offset(log(1/abundance))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+# 
+# # consider using the link function and rel abund for offsets
+# # this seems like a good guess. 
+# dd <- dd %>% mutate(relab = start_ab/sum(start_ab))
+# clog_off <- glm(rperc ~ samp * rarity + offset(log(-log(1-relab)))
+#                         , data = dd
+#                         , family = binomial(link = cloglog)
+#                         , weights = rep.int(100, length(dd[,1])))
+# 
+# summary(clog_off)
 
 ```
 
@@ -605,7 +634,13 @@ wide <- bind_rows(bind_cols(r_a
 
 
 names(wide)
+wide_sum <- wide %>% group_by(rarity, sp, samp) %>% 
+  summarize(occ = sum(occ)) %>% 
+  group_by(rarity, samp) %>% 
+  mutate(inds = sum(occ))
 
+
+head(wide_sum)
 # fit GLMM in lme4 (glmmTMB suspected not to be reliable on convergence issues
 # due to boundary things)
 
@@ -628,6 +663,10 @@ slre_only <- lme4::glmer(occ~rarity*samp + (1|sp)
                         , family = binomial(link = "cloglog")
                         , data = wide)
 
+
+off_only <- glm(occ~rarity*samp + offset(log(inds))
+                        , family = binomial(link = "cloglog")
+                        , data = wide_sum)
 # No convergence warning.
 summary(slre_only)
 
@@ -705,6 +744,7 @@ bc <- function() {
                    name = link),
               class = "link-glm")
 }
+```
 
 ## Sandbox.... Why would't you just sample the same in all treatments?
 I sample bees by looking into flowers in timed, fixed-area surveys, and if there
