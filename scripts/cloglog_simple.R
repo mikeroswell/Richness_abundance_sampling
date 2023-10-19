@@ -95,8 +95,56 @@ species_cloglog_off <-  glm(rperc ~ samp   + offset(log(abundance))
                             , data = dd
                             , family = binomial(link = cloglog)
                             , weights = rep.int(100, length(dd[,1])))
-exp(coef(species_cloglog_off))
-summary(species_cloglog_off) # and now we see no effect of sampling at all!
 
+summary(species_cloglog_off) 
+exp(coef(species_cloglog_off)) # and now we see no effect of sampling at all!
+
+
+
+# show breakdown with heterogeniety in species abundances
+
+sim_ab <- MeanRarity::fit_SAD(rich = 100, simpson = 40)$rel_abundances
+
+ab_lg <- rmultinom(reps, lg, sim_ab)
+ab_md <- rmultinom(reps, md, sim_ab)
+ab_sm <- rmultinom(reps, sm, sim_ab)
+
+dd2 <- map_dfr(c("sm", "md", "lg"), function(samp){
+  data.frame(abundance = apply(get(paste("ab", samp, sep = "_"))
+                               , 2, sum)
+             , species = apply(get(paste("ab", samp, sep = "_"))
+                               , 2, function(x){sum(x>0)})
+             , samp = samp
+  ) %>% mutate(rperc = species/100)
+})
+
+# does it work now?
+species_cloglog <- glm(rperc ~ samp 
+                       , data = dd2
+                       , family = binomial(link = cloglog)
+                       , weights = rep.int(100, length(dd2[,1])))
+
+summary(species_cloglog)
+
+exp(coef(species_cloglog)) # these aren't the right ratios!
+
+# does offset save us?
+
+species_cloglog_off <-  glm(rperc ~ samp   + offset(log(abundance))
+                            , data = dd2
+                            , family = binomial(link = cloglog)
+                            , weights = rep.int(100, length(dd2[,1])))
+summary(species_cloglog_off) # and now we see no effect of sampling at all!
+exp(coef(species_cloglog_off))
+
+
+
+# does random effect solve the problem?
+species_glmm <-  glmer(rperc ~ samp   + offset(log(abundance))
+                            , data = dd2
+                            , family = binomial(link = cloglog)
+                            , weights = rep.int(100, length(dd2[,1])))
+summary(species_cloglog_off) # and now we see no effect of sampling at all!
+exp(coef(species_cloglog_off))
 
 # next step wd be the random effects using Dirichlet, Logistic-Normal, or other approach to model species-level heterogeneity. 
