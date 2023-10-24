@@ -10,8 +10,39 @@ library(purrr)
 
 # simulate data
 set.seed(101823)
+
 # set # of reps
 reps <- 999
+# set number of species
+
+R <- 100
+
+# generate RE distributions for a more and less diverse assemblage (more and less even relative abundances)
+
+reh <- rnorm(R, mean = 0, sd = 0.5)
+rel <- rnorm(R, mean = 0, sd = 2)
+
+# convert these to changes in log hazard
+
+# defining link and inverse
+cloglog <- function(x) log(-log(1-x))
+gompertz <- function(x) 1-exp(-exp(x))
+
+
+hh <- gompertz(reh)
+hl <- gompertz(rel)
+
+hist(hh)
+hist(hl)
+
+# These are all probabilities, but they're too large
+sum(hh)
+sum(hl)
+
+
+
+# To make them into something like a SAD, we need to move the intercept
+
 
 # set all spp with same abundance
 snn <- 10
@@ -24,14 +55,14 @@ nsr <- 200 # double diversity for one smaple
 lg <- 450
 md <-lg/2
 sm <- lg/3
-xt <- md # medium sample for the xtra diverse comm.
+xt <- lg # medium sample for the xtra diverse comm.
 
 
 # random sampling
 ab_lg <- rmultinom(reps, lg, rep(snn, nsp))
 ab_md <- rmultinom(reps, md, rep(snn, nsp))
 ab_sm <- rmultinom(reps, sm, rep(snn, nsp))
-ab_xt <- rmultinom(reps, md, rep(snn, nsr)) # double richness in "xt"
+ab_xt <- rmultinom(reps, xt, rep(snn, nsr)) # double richness in "xt"
 
 # format into data frame
 dd <- map_dfr(c("sm", "md", "lg", "xt"), function(samp){
@@ -46,12 +77,22 @@ dd <- map_dfr(c("sm", "md", "lg", "xt"), function(samp){
 
 
 # look at richness across replicate samples
-dd %>% 
+sim_graph <- dd %>% 
   ggplot(aes(samp, species)) +
-  geom_violin() +
+  geom_violin(color = "black") +
+  geom_point(aes(y = true_rich), color = "red") +
+  geom_text(data = data.frame(samp = c("md", "md"), species = c(35, 25), txt = c("true community richness", "sample richness")), aes(color = txt, label = txt), nudge_x = 0.5  ) +
+  scale_color_manual(values = c("black", "red")) +
   scale_y_log10(limits = c(1, NA), n.breaks = 6) +
   theme_classic() +
+  theme(legend.position = "none") +
+
   labs(x = "sample")
+
+print(sim_graph)
+pdf("figures/simulation_data_graph.pdf", height =4, width = 4)
+sim_graph
+dev.off()
 
 # look at sample size (commonly, "abundance")
 dd %>% 
@@ -96,9 +137,7 @@ exp(coef(pois_mod))
 
 # go to hazard models, cloglog
 
-# defining link and inverse
-# cloglog <- function(x) log(-log(1-x))
-# gompertz <- function(x) 1-exp(-exp(x))
+
 
 # fit model: similar to logistic but with cloglog link instead of logit
 species_cloglog <- glm(rperc ~ samp 
@@ -143,7 +182,7 @@ sim_xt <- MeanRarity::fit_SAD(rich = 200, simpson = 80)$rel_abundances
 ab_lg <- rmultinom(reps, lg, sim_ab)
 ab_md <- rmultinom(reps, md, sim_ab)
 ab_sm <- rmultinom(reps, sm, sim_ab)
-ab_xt <- rmultinom(reps, md, sim_xt)
+ab_xt <- rmultinom(reps, lg, sim_xt)
 
 dd2 <- map_dfr(c("sm", "md", "lg", "xt"), function(samp){
   data.frame(abundance = apply(get(paste("ab", samp, sep = "_"))
@@ -180,6 +219,10 @@ exp(coef(species_cloglog_off)) #pushing in the right direction??
 # would generalizing to "effort" violate any key assumptions? 
 
 # [NOT RUN] does random effect solve the problem?
+
+# generate data with lme4 simulate.merMod
+
+
 species_glmm <-  glmer(rperc ~ samp   + offset(log(abundance)) + (1|sp)
                             , data = dd2
                             , family = binomial(link = cloglog)
