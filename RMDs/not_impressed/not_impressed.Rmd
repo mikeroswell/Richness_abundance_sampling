@@ -608,7 +608,7 @@ this random effect, e.g., identifiability and convergence issues. So, we'll
 build up to it and see where it goes.
 
 ```{r species-level random effects}
-reps <- 9999
+reps <- 999
 rare <- 1 # mean for rare
 common <- 25 # mean for common
 ab_a <- rmultinom(reps, 200, c(rnorm(100, rare, sd = 0.2), rnorm(100, common)))
