@@ -12,13 +12,13 @@ MeanRarity::rarity(c(rep(1, 4)), l = 0 )
 
 #Richness is a relative abundance measure too
 
-obs1 <- rmultinom(999, 15, c(5, rep(1,4)))
-obs2 <- rmultinom(999, 15, c(rep(1,5)))
+obs1 <- rmultinom(999, 15, c(5, 4, rep(1,3)))
+obs2 <- rmultinom(999, 15, c(rep(1,4)))
 
 par(mfrow= c(2,1))
-mean(apply(obs1, 2, function(x){sum(x>1)}))
-mean(apply(obs2, 2, function(x){sum(x>1)}))
-
+h <- mean(apply(obs1, 2, function(x){sum(x>1)}))
+l <- mean(apply(obs2, 2, function(x){sum(x>1)}))
+l/h
 # Create a new SAD solver
 
 cloglog <- function(x) log(-log(1-x))
@@ -67,8 +67,8 @@ cloglog_SAD <- function(rich, sd, int_lwr = -1e5, ...){
 
 first_SAD <- cloglog_SAD(rich = 100, sd = 2)
 second_SAD <- cloglog_SAD(rich = 100, sd = 1.5)
-hist(first_SAD$ab)
-hist(second_SAD$ab)
+hist(first_SAD$ab, breaks = 30, ylim c = )
+hist(second_SAD$ab, breaks = 30)
 reps <- 999
 n_s <- 100 # small sample
 n_b <- 300 # big sample
@@ -149,7 +149,7 @@ summary(gn_nb)
 
 exp(coef(gn_nb))
 
-gn_logi <- glm(rperc ~ sample_size * diversity
+gn_logi <- glm(rperc ~ sample_size * diversityb 
                           , family = "binomial"
                , weights = rep(100, 4*reps)
                           , data = dd)
@@ -167,7 +167,7 @@ summary(gn_clog_flat)
 
 exp(coef(gn_clog_flat))
 
-gn_clog_off <- glm(rperc ~ offset(log(abundance)) + diversity
+gn_clog_off <- glm(rperc ~ log(abundance) + diversity
                    , family = binomial(link = "cloglog")
                    , weights = rep(100, 4*reps)
                    , data = dd)
@@ -176,7 +176,7 @@ summary(gn_clog_off)
 
 exp(coef(gn_clog_off))
 
-gn_clog_off <- glm(rperc ~ offset(log(abundance)) + diversity * sample_size
+gn_clog_off <- glm(rperc ~ log(abundance) + diversity * sample_size
                    , family = binomial(link = "cloglog")
                    , weights = rep(100, 4*reps)
                    , data = dd)
@@ -187,9 +187,13 @@ gn_clog_off <- glm(pres ~ offset(log(tot_ab)) + diversity *sample_size
 
 exp(coef(gn_clog_off))
 
-gn_clog_re <- lme4::glmer(pres ~ offset(log(tot_ab)) + diversity *sample_size + (1|sp)
+gn_clog_re <- lme4::glmer(pres ~ offset(log(tot_ab)) +  (1|diversity/sp)
                           , family = binomial(link = "cloglog")
-                          , data = ddl)
+                          , data = ddl
+                          , start = list(fixef = -log(2))
+                          )
+exp(lme4::fixef(gn_clog_re))
+
 
 gn_logi_re <- lme4::glmer(pres ~  diversity + rplct + 
                             sample_size + (1|sp)
