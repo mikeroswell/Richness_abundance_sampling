@@ -6,118 +6,38 @@ library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(purrr)
+library(RTMB)
+library(patchwork)
 
+# rhetorical: lose 56% of individuals and 20% species; Shannon and Simpson increase
 MeanRarity::rarity(c(5, rep(1, 4)), l = 0 )
 MeanRarity::rarity(c(rep(1, 4)), l = 0 )
 
 #Richness is a relative abundance measure too
 
+# similarly, lose 67% of individuals and 20% of species and expected sample
+# richness increases by 20%:
 obs1 <- rmultinom(999, 15, c(5, 4, rep(1,3)))
 obs2 <- rmultinom(999, 15, c(rep(1,4)))
 
-par(mfrow= c(2,1))
+# par(mfrow= c(2,1))
 h <- mean(apply(obs1, 2, function(x){sum(x>1)}))
 l <- mean(apply(obs2, 2, function(x){sum(x>1)}))
 l/h
-# Create a new SAD solver
 
-cloglog <- function(x) log(-log(1-x))
-gompertz <- function(x) 1-exp(-exp(x))
-
-ur_cloglog <- function(x
-  , rich = rich
-  , sd = sd
-  , ...){
-    1 - sum(try_cloglog(x, sd, rich))
-            }
-
-rich <- 100
-sd <- 2
-int_uppr <- 0
-int_lwr <- -1e5
-
-try_cloglog <- function(x, sd, rich){
-  myab <- gompertz(stats::qnorm(seq(from = (1 / rich) / 2
-                            , to = 1 - (1 / rich) / 2
-                            , by = (1 / rich)
-  )
-  , mean = x
-  , sd = sd))
-  myab[order(myab, decreasing = TRUE)]
-}
-
-cloglog_SAD <- function(rich, sd, int_lwr = -1e5, ...){
-  ur =  tryCatch(
-   stats::uniroot(function(x) {
-      ur_cloglog(
-        rich = rich,
-        x = x,
-        sd = sd)}
-      , lower = int_lwr
-      , upper = 0)
-   )
-    ab = try_cloglog(x = ur$root, sd = sd, rich = rich)
-    return(
-      list(distr = data.frame(form = "gompertz-normal"
-                              , mean = ur$root
-                              , sd = sd
-                              , rich = rich)
-                , ab = ab ))
-    }
+# load cloglog solver
+source("scripts/cloglog_solver.R")
 
 first_SAD <- cloglog_SAD(rich = 100, sd = 2)
 second_SAD <- cloglog_SAD(rich = 100, sd = 1.5)
-hist(first_SAD$ab, breaks = 30, ylim c = )
-hist(second_SAD$ab, breaks = 30)
-reps <- 999
-n_s <- 100 # small sample
-n_b <- 300 # big sample
-obs_s_l <- rmultinom(size = n_s, n = reps, prob = first_SAD$ab)
-obs_b_l <- rmultinom(size = n_b, n = reps, prob = first_SAD$ab)
-obs_s_h <- rmultinom(size = n_s, n = reps, prob = second_SAD$ab)
-obs_b_h <- rmultinom(size = n_b, n = reps, prob = second_SAD$ab)
+# plot sads
+first_SAD_plot <- MeanRarity::radplot(first_SAD$ab) + ylim(c(0, 0.3))
+second_SAD_plot <- MeanRarity::radplot(second_SAD$ab) + ylim(c(0, 0.3))
+first_SAD_plot + second_SAD_plot
 
 
-dd <- map_dfr(c("s", "b"), function(sample_size){
-    map_dfr(c("h", "l"), function(diversity){
-      data.frame(abundance = apply(get(paste("obs"
-                                             , sample_size, diversity
-                                             , sep = "_"))
-                                   , 2
-                                   , sum)
-             , species = apply(get(paste("obs"
-                                         , sample_size, diversity
-                                         , sep = "_"))
-                               , 2
-                               , function(x){sum(x>0)})
-             , sample_size = sample_size
-             , diversity = diversity) %>% 
-        mutate(rperc = species/rich)
-  })
-})
-
-ddl <- map_dfr(c("s", "b"), function(sample_size){
-  map_dfr(c("h", "l"), function(diversity){
-    
-    data.frame(pivot_longer(data.frame(get(paste("obs"
-                                                 , sample_size, diversity
-                                                 , sep = "_"))) %>% tibble::rownames_to_column(var = "sp")
-                            , cols = 2:(reps+1)
-                            , names_to = "rplct"
-                            , values_to = "abundance"
-    ) %>% mutate(pres = as.numeric(abundance >0))
-    , sample_size = sample_size
-    , diversity = diversity
-    ) %>% 
-      group_by(rplct
-               , sample_size
-               , diversity) %>% 
-      mutate(tot_ab = sum(abundance)
-             , tot_r = sum(pres))
-  })
-})
-
-
+# load simulated data for cloglog explorations
+source("scripts/cloglog_sim_only.R")
 
 dd %>% ggplot(
   aes(x = sample_size, y = species, color = diversity) )+
