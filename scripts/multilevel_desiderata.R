@@ -66,12 +66,16 @@ oF <- function(parms){
   ## Get predicted weight uncertainties
   ADREPORT(predLogNum)
 }
+################################
+## NOT RUN: Takes a long time ##
+################################ 
 
-# process objective function into model
-obj <- MakeADFun(oF, parameters, random =c("b"))
-# that took a while. 
+## process objective function into model
+# obj <- MakeADFun(oF, parameters, random =c("b"))
+## that took a while. 
 
-# try fitting the model
-opt <- nlminb(obj$par, obj$fn, obj$gr)
+## try fitting the model
 
-opt
+# opt <- nlminb(obj$par, obj$fn, obj$gr)
+# 
+# opt
