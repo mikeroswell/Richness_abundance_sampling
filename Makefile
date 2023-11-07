@@ -12,6 +12,9 @@ vim_session:
 
 ######################################################################
 
+multilevel_desiderata.Rout: scripts/multilevel_desiderata.R
+	$(wrapR)
+
 ######################################################################
 
 ### Makestuff
@@ -29,7 +32,7 @@ makestuff/%.stamp:
 
 -include makestuff/os.mk
 
-## -include makestuff/pipeR.mk
+-include makestuff/pipeR.mk
 
 -include makestuff/git.mk
 -include makestuff/visual.mk
