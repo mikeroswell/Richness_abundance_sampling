@@ -1,0 +1,8 @@
+# Notes to self 9 November 2023
+
+Bolker basically suggested we start with TMB/ RTMB for modelling random effects models where the variance of the random effects need to vary by group. Started working on that `scripts/multilevel_desiderata.R` and realized there were some things to figure out in terms of writing models in TMB... especially the question of how to index and fill parameters. 
+
+We also discussed that the cloglog/richness direction might not be the best for now. Rather than collapsing detections into a binary, keep focusing on counts for clarity (can always collapse later). Also, the numerical issues with cloglog seem scary (see [stack overflow](https://stackoverflow.com/a/77377770/8400969)). 
+
+# big outstanding question:
+Even if we have the hazard/exposure framework in mind, why are we imagining we would do something different than Chao and Jost 2015? How will we fix downward bias on rarity of observed spp? How much will parametric assumptions tie us to specific outcomes? 
